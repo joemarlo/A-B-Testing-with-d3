@@ -5,17 +5,17 @@ library(parallel)
 # set number of cores available for parallel processing
 cpu_cores <- detectCores()
 
-# set number of simulations to 10,000
+# set number of simulations
 simulations <- 1000
 
-# set alpha of a/b checks to 0.05
+# set alpha
 alpha <- 0.05
 
 # difference in effect size translated to mu
-effect_size <- seq(0, 0.1, by = 0.01)
+effect_sizes <- seq(0, 0.1, by = 0.01)
 base_mean <- 120
 std_dev <- 15
-mus <- base_mean * (1 + effect_size)
+mus <- base_mean * (1 + effect_sizes)
 
 # create grid of all input combinations
 input_grid <- crossing(
@@ -39,15 +39,14 @@ results <- mclapply(1:simulations, mc.cores = cpu_cores, FUN = function(i){
                         simplify = FALSE))
     
     # set sample sizes to conduct checks at (i.e. the intervals)
-    looks <- seq(from = 0,
+    looks <- seq(from = sample_size / n_checks,
                  to = sample_size,
-                 length.out = n_checks) %>%
-      ceiling() %>% 
-      .[-1]
+                 by = sample_size / n_checks) %>%
+      ceiling()
     
     # create combinations of looks and B vectors
     looks_checks_combinations <- crossing(looks = looks, 
-             Bs = B) %>% 
+                                          Bs = B) %>% 
       unnest(Bs)
     
     # 'look' at the data at each interval and every multiple comparison, and run a t-test
@@ -71,7 +70,7 @@ results <- mclapply(1:simulations, mc.cores = cpu_cores, FUN = function(i){
 # visualize results
 # too many dimensions so need to filter
 results %>% 
-  filter(n_comparisons == 1) %>% 
+  filter(n_comparisons == 10) %>% 
   group_by(effect_size, sample_size, n_checks) %>%
   summarize(Probability_of_finding_an_effect = mean(effect_detected)) %>% 
   ggplot(aes(x = n_checks, y = Probability_of_finding_an_effect)) +
@@ -86,7 +85,7 @@ results %>%
 
 # probability of finding an effect
 summarized_results <- results %>% 
-  group_by(effect_size, sample_size, n_checks, n_comparisons) %>%
+  group_by(n_checks, n_comparisons, effect_size, sample_size) %>%
   summarize(Probability_of_finding_an_effect = mean(effect_detected)) %>% 
   ungroup()
 
