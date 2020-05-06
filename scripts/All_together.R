@@ -6,25 +6,23 @@ library(parallel)
 cpu_cores <- detectCores()
 
 # set number of simulations to 10,000
-simulations <- 100
+simulations <- 1000
 
 # set alpha of a/b checks to 0.05
 alpha <- 0.05
 
-# set the maximum number of checks
-checks <- 20
-
 # difference in effect size translated to mu
-effect_size <- seq(0, 0.05, by = 0.01)
+effect_size <- seq(0, 0.1, by = 0.01)
 base_mean <- 120
+std_dev <- 15
 mus <- base_mean * (1 + effect_size)
 
 # create grid of all input combinations
 input_grid <- crossing(
-  n_checks = seq(0, 20, by = 5),
-  n_comparisons = seq(0, 20, by = 5),
+  n_checks = c(1, 5, 10, 20),
+  n_comparisons = c(1, 5, 10, 20),
   effect_size = mus,
-  sample_size = seq(1000, 5000, by = 2000)
+  sample_size = c(100, 1000, 5000)
 )
 
 # run the simulation
@@ -32,17 +30,12 @@ results <- mclapply(1:simulations, mc.cores = cpu_cores, FUN = function(i){
   
   single.sim <- pmap_dfr(input_grid, function(n_checks, n_comparisons, effect_size, sample_size){
     
-    # n_checks = 5
-    # n_comparisons = 5
-    # effect_size = 125
-    # sample_size = 100
+    # set the base distributions to conduct t-test on
+    A <- rnorm(sample_size, base_mean, std_dev)
     
-    # set distributions to conduct t-test on
-    A <- rnorm(sample_size, base_mean, 15)
-    
-    # list of rnorms for for multiple comparisons
+    # create a list of distributions to compare the base distribution against (multiple comparisons)
     B <- list(replicate(n = n_comparisons, 
-                        rnorm(sample_size, effect_size, 15), 
+                        rnorm(sample_size, effect_size, std_dev), 
                         simplify = FALSE))
     
     # set sample sizes to conduct checks at (i.e. the intervals)
@@ -65,34 +58,45 @@ results <- mclapply(1:simulations, mc.cores = cpu_cores, FUN = function(i){
     })
     
     # check to see if any of the pvalues are below alpha
-    false_positive <- any(p.vals < alpha)
+    at_least_one_effect_detected <- any(p.vals < alpha)
     
     return(tibble(sim = i, n_checks = n_checks, n_comparisons = n_comparisons ,
                   effect_size = effect_size, sample_size = sample_size, 
-                  false_positive = false_positive))
+                  effect_detected = at_least_one_effect_detected))
   })
   
   return(single.sim)
 }) %>% bind_rows()
 
-
-# add column identifying what the correct outcome of the test should be
-results$true_result <- results$effect_size > base_mean
-
-# plot the accuracy
+# visualize results
+# too many dimensions so need to filter
 results %>% 
-  group_by(effect_size, sample_size, n_checks, n_comparisons) %>%
-  summarize(`Accuracy` = mean(false_positive == true_result)) %>% 
-  ggplot(aes(x = n_checks, y = `Accuracy`)) +
+  filter(n_comparisons == 1) %>% 
+  group_by(effect_size, sample_size, n_checks) %>%
+  summarize(Probability_of_finding_an_effect = mean(effect_detected)) %>% 
+  ggplot(aes(x = n_checks, y = Probability_of_finding_an_effect)) +
   geom_point() + 
   geom_line() +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20)) + 
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) + 
-  labs(title = "Frequent stoppage increases false positives",
+  labs(title = "TITLE",
        subtitle = paste0(scales::comma(simulations), " simulations"),
        x = "Number of stops") +
   facet_grid(effect_size ~ sample_size)
 
+# probability of finding an effect
+summarized_results <- results %>% 
+  group_by(effect_size, sample_size, n_checks, n_comparisons) %>%
+  summarize(Probability_of_finding_an_effect = mean(effect_detected)) %>% 
+  ungroup()
+
+# write out dataframe to be used in d3
+summarized_results %>% 
+  rowwise() %>% 
+  # replace effect size with original relative value
+  mutate(effect_size = effect_sizes[effect_size == mus]) %>% 
+  ungroup() %>% 
+  write_csv(path = "d3/prob_effect.csv")
 
 
 # Generate base vector ----------------------------------------------------
@@ -104,15 +108,3 @@ write_csv(x = ., path = "d3/base_vector.csv")
 
 # https://www.lexjansen.com/nesug/nesug10/hl/hl07.pdf
 
-
-
-
-data <- list(
-  id = c("John", "Jane"),
-  greeting = c("Hello.", "Bonjour."),
-  sep = c("! ", "... ")
-)
-
-data %>%
-  cross_df() %>%
-  map(lift(paste))

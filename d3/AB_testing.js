@@ -22,6 +22,8 @@ var svg = d3.select("div#main_plot")
 // set starting values
 default_effect_size = 0.05;
 default_sample_size = 1000;
+default_stops = 1;
+default_comparisons = 1;
 
 // define the x Axis
 var x = d3.scaleLinear()
@@ -71,13 +73,12 @@ function drawXlabel(selection) {
 // get the data
 d3.csv("/d3/A-B-Testing/base_vector.csv", function(data) {
 
-
   // set arrays of data and offset the second array to account for the 'effect size'
   var original_data = data.map(function(d){  return d.value; });
   effect_size = default_effect_size;
   curve_offset = d3.mean(data, function(d) { return d.value}) * (effect_size);
   
-  // scale the original data by the offset and add some random noise
+  // scale the original data by the offset //and add some random noise
   var original_offset = original_data.map(x => x - (-curve_offset)); // + sign doesn't work
   //var original_offset = original_data.map(x => x - (-curve_offset * Array.from({length: 1}, d3.randomNormal(1, 0.5)))); // + sign doesn't work
   
@@ -209,6 +210,8 @@ d3.csv("/d3/A-B-Testing/base_vector.csv", function(data) {
   // set starting values
   current_effect = default_effect_size;
   current_sample = default_sample_size;
+  current_stops = default_stops;
+  current_comparisons = default_comparisons;
   
   // Listen to the effect size slider
   d3.select("#slider_effectsize").on("change", function(d){
@@ -221,7 +224,27 @@ d3.csv("/d3/A-B-Testing/base_vector.csv", function(data) {
     current_sample = this.value;
     updateChart(current_effect, current_sample);
   });
+  
+  
+  /*
+  // Listen to the number of stops slider
+  d3.select("#slider_stops").on("change", function(d){
+    current_stops = this.value;
+    updateChart(current_effect, current_sample, current_stops);
+  });
+  
+  // Listen to the number of comparisons slider
+  d3.select("#slider_comparisons").on("change", function(d){
+    current_comparisons = this.value;
+    updateChart(current_effect, current_sample, current_stops, current_comparisons);
+  });
+  */
 
+});
+
+
+d3.csv("/d3/A-B-Testing/prov_effect.csv", function(data) {
+  //https://github.com/d3/d3-array
 });
 
 
