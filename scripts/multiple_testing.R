@@ -46,7 +46,7 @@ error_rate %>%
        subtitle = paste0(scales::comma(Nsim), " simulations"),
        x = 'Number of comparisons',
        y = 'False positive rate') +
-  theme(legend.position = c(0.775, 0.375),
+  theme(legend.position = c(0.75, 0.375),
         legend.box.background = element_rect(color = 'grey90'),
         legend.title = element_blank())
 

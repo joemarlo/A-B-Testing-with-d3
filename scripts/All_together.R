@@ -12,17 +12,17 @@ simulations <- 1000
 alpha <- 0.05
 
 # difference in effect size translated to mu
-effect_sizes <- seq(0, 0.1, by = 0.01)
+effect_sizes <- seq(0, 0.1, by = 0.02)
 base_mean <- 120
 std_dev <- 15
 mus <- base_mean * (1 + effect_sizes)
 
 # create grid of all input combinations
 input_grid <- crossing(
-  n_checks = c(1, 5, 10, 20),
-  n_comparisons = c(1, 5, 10, 20),
+  n_checks = 1:10,
+  n_comparisons = 1:10,
   effect_size = mus,
-  sample_size = c(100, 1000, 5000)
+  sample_size = seq(1000, 5000, 2000)
 )
 
 # run the simulation
@@ -70,7 +70,7 @@ results <- mclapply(1:simulations, mc.cores = cpu_cores, FUN = function(i){
 # visualize results
 # too many dimensions so need to filter
 results %>% 
-  filter(n_comparisons == 10) %>% 
+  filter(n_comparisons == 1) %>% 
   group_by(effect_size, sample_size, n_checks) %>%
   summarize(Probability_of_finding_an_effect = mean(effect_detected)) %>% 
   ggplot(aes(x = n_checks, y = Probability_of_finding_an_effect)) +
@@ -100,9 +100,9 @@ summarized_results %>%
 
 # Generate base vector ----------------------------------------------------
 
-base_vector <- rnorm(10000, 50, 20)
+# base_vector <- rnorm(10000, 50, 20)
 
-write_csv(x = ., path = "d3/base_vector.csv")
+# write_csv(x = ., path = "d3/base_vector.csv")
 
 
 # https://www.lexjansen.com/nesug/nesug10/hl/hl07.pdf
