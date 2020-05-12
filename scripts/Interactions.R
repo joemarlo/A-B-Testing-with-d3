@@ -32,7 +32,7 @@ ggplot(study, aes(value, fill = name)) +
            label = paste0("A = ", round(mean(A), 1), " minutes\nB = ", round(mean(B), 1), " minutes\np-value = ", round(ttest_results$p.value, 2))) +
   labs(title = "A/B test results",
        x = "Minutes spent on site", 
-       y = element_blank()) + 
+       y = NULL) + 
   theme(legend.title = element_blank(),
         legend.position = c(0.8, 0.8),
         legend.box.background = element_rect(color = 'white'), 

@@ -1,0 +1,12 @@
+name: A-B-tool
+title: A-B-tool
+username:
+account: jmarlo
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2269379
+bundleId: 3137916
+url: https://jmarlo.shinyapps.io/A-B-tool/
+when: 1589303401.83945
+asMultiple: FALSE
+asStatic: FALSE
