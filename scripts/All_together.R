@@ -11,11 +11,12 @@ simulations <- 5000
 # set alpha
 alpha <- 0.05
 
-# difference in effect size translated to mu
+# difference in effect size and spread
 effect_sizes <- c(0, 0.01, 0.02, 0.05, 0.10, 0.20)
 base_mean <- 45
 mus <- base_mean * (1 + effect_sizes)
-sds <- base_mean * c(0.01, 0.05, 0.1, 0.20)
+sds_offset <- c(0.01, 0.05, 0.1, 0.20)
+sds <- base_mean * sds_offset
 
 # create grid of all input combinations
 input_grid <- crossing(
@@ -101,22 +102,22 @@ summarized_results <- results %>%
 summarized_results %>% 
   rowwise() %>% 
   # replace effect size with original relative value
-  mutate(effect_size = effect_sizes[effect_size == mus]) %>% 
+  # replace sd size with original relative value
+  mutate(effect_size = effect_sizes[effect_size == mus],
+         std_dev = sds_offset[std_dev == sds]) %>% 
   ungroup() %>% 
   write_csv(path = "d3/prob_effect.csv")
 
 
 # examine results ---------------------------------------------------------
 summarized_results <- read_csv("d3/prob_effect.csv")
-
-expanded_grid <- crossing(
-  n_checks = 1:10,
-  n_comparisons = 1:10,
-  effect_size = mus,
-  sample_size = seq(1000, 5000, 2000)
-)
-
-
+# 
+# expanded_grid <- crossing(
+#   n_checks = 1:10,
+#   n_comparisons = 1:10,
+#   effect_size = mus,
+#   sample_size = seq(1000, 5000, 2000)
+# )
 
 
 # Generate base vector ----------------------------------------------------

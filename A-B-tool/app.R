@@ -1,7 +1,7 @@
 library(shiny)
 library(shinyWidgets)
 library(tidyverse)
-
+set.seed(44)
 
 # data load and themes ----------------------------------------------------
 
@@ -51,6 +51,11 @@ ggplot <- function(...){ ggplot2::ggplot(...) +
         scale_fill_brewer(palette = "Set1")
 }
 
+# slider text vectors
+effect_size_values <- c(0, 0.01, 0.02, 0.05, 0.10, 0.20)
+sample_size_values <- c(100, 1000, 5000, 10000)
+sample_size_text <- c("100", "1,000", "5,000", "10,000")
+spread_values <- c(0.01, 0.05, 0.10, 0.20)
 
 
 # UI ----------------------------------------------------------------------
@@ -59,8 +64,9 @@ ggplot <- function(...){ ggplot2::ggplot(...) +
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = "my-shiny.css",
                 
-    # download roboto font
+    # download roboto and inconsolata font
     HTML('<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:400,300,700,400italic">'),
+    HTML('<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inconsolata">'),
                 
     # choose default slider skin
     chooseSliderSkin(skin = "Flat",
@@ -71,36 +77,36 @@ ui <- fluidPage(theme = "my-shiny.css",
     sidebarLayout(
         
         sidebarPanel(
-        
+            
+            sliderTextInput(
+                "effect_size",
+                "The true effect size between A and B (as proportion of mean)",
+                choices = effect_size_values,
+                selected = 0
+            ),
             sliderTextInput(
                 "n_stops",
-                "Number of stops",
+                "How many times you stop and check the data",
                 choices = c(1, 2, 3, 5, 10, 20),
                 selected = 1
             ),
             sliderTextInput(
                 "n_comparisons",
-                "Number of comparisons",
+                "How many comparisons are conducted",
                 choices = c(1, 2, 3, 5, 10, 20),
                 selected = 1
             ),
             sliderTextInput(
-                "effect_size",
-                "Effect size (as proportion of mean)",
-                choices = c(0, 0.01, 0.02, 0.05, 0.10, 0.20),
-                selected = 0
-            ),
-            sliderTextInput(
                 "sample_size",
                 "Sample size",
-                choices = c(100, 1000, 5000, 10000),
-                selected = 1000
+                choices = sample_size_text,
+                selected = "1,000"
             ),
             sliderTextInput(
-                "std_dev",
+                "spread",
                 "Spread (standard deviation as proportion of mean)",
-                choices = c(2.25, 4.50, 9.00),
-                selected = 4.50
+                choices = spread_values,
+                selected = 0.1
             )
     ),
         
@@ -111,67 +117,65 @@ ui <- fluidPage(theme = "my-shiny.css",
     ),
     
     HTML('<div class="belowplot" >
-         <p>Probability estimates based on 5,000 simulations</p>
-         <a href="https://www.marlo.works/posts/a-b-testing/">marlo.works/A-B-Testing</a>
+         <p>Probability estimates based on 5,000 simulations. Alpha = 0.05.</p>
+         <p>See 
+         <a href="https://www.marlo.works/posts/a-b-testing/" target="_blank">marlo.works/A-B-Testing</a>
+          for more info.</p>
          </div>'),
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+    # look up variables from the slider text to the actuql value
+    sample_size <- reactive({sample_size_values[input$sample_size == sample_size_text]})
+    
+    # filter dataset to inputs and pull out probability
     output$probability_results <- renderText({
         
-        probs <- summarized_results %>% 
+        probs <- summarized_results %>%
             filter(n_checks == input$n_stops,
                    n_comparisons == input$n_comparisons,
                    effect_size == input$effect_size,
-                   sample_size == input$sample_size,
-                   std_dev == input$std_dev) %>% 
+                   sample_size == sample_size(),
+                   std_dev == input$spread) %>%
             pull(Probability_of_finding_an_effect)
-        
-        paste0('<h2>Pulling it all together<br> <span class="subheader">Probabililty of finding at least one effect: &nbsp</span> ~ ', 
+
+        paste0('<h2>A/B testing: pulling it all together<br>
+               <span class="subheader">Probability of finding at least one effect: &nbsp </span>',
+               '<span class="emphasis"> ~',
                round(min(0.99, max(0.05, probs)), 2),
-               '</h2>')
+               '</span></h2>')
     })
     
     output$distPlot <- renderPlot({
-        
+
         # simulate random distributions
         dat <-
             tibble(
                 As = as.vector(replicate(input$n_comparisons, rnorm(
-                    n = input$sample_size, 
-                    mean = 45, 
-                    sd = input$std_dev
+                    n = sample_size(),
+                    mean = 45,
+                    sd = 45 * input$spread
                 ))),
                 Bs = as.vector(replicate(input$n_comparisons, rnorm(
-                    n = input$sample_size, 
-                    mean = 45 * (1 + input$effect_size), 
-                    sd = input$std_dev
+                    n = sample_size(),
+                    mean = 45 * (1 + input$effect_size),
+                    sd = 45 * input$spread
                 ))),
-                ID = rep(1:input$n_comparisons, each = input$sample_size)
+                ID = factor(rep(
+                    paste0("Comparison ", 1:input$n_comparisons),
+                    each = sample_size()),
+                levels = paste0("Comparison ", 1:input$n_comparisons))
             )
-        
+
         # calculate means for each distribution
         means <- dat %>% group_by(ID) %>% summarize(meanA = mean(As),
                                                      meanB = mean(Bs))
-        
-        # draw the plot
-        # dat %>% 
-        #     ggplot() +
-        #     geom_density(aes(x = As), fill = "grey20", alpha = 0.6) +
-        #     geom_density(aes(x = Bs), fill = "#4e917e", alpha = 0.6) +
-        #     geom_vline(data = means, aes(xintercept = meanA), color = 'black') +
-        #     geom_vline(data = means, aes(xintercept = meanB), color = '#6fd9bb') +
-        #     scale_x_continuous(labels = NULL, lim = c(20, 70)) +
-        #     scale_y_continuous(labels = NULL) +
-        #     facet_wrap(~ID) +
-        #     labs(x = "Minutes spent on site",
-        #          y = NULL) +
-        #     theme(legend.position = "top")
 
+        # draw the plot
         fill_colors <- c("A" = "grey20", "B" = "#4e917e")
-        dat %>% 
+        dat %>%
             ggplot() +
             geom_density(aes(x = As, fill = "A"), alpha = 0.6) +
             geom_density(aes(x = Bs, fill = "B"), alpha = 0.6) +
@@ -181,12 +185,11 @@ server <- function(input, output) {
             scale_y_continuous(labels = NULL) +
             scale_fill_manual(values = fill_colors) +
             facet_wrap(~ID) +
-            labs(title = "Distributions of A and B with respective means",
+            labs(title = "Distributions of A and B",
                  x = NULL,
                  y = NULL) +
             theme(legend.position = "bottom")
-        
-        
+
     })
 }
 
