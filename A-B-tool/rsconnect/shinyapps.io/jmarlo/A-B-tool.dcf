@@ -5,8 +5,8 @@ account: jmarlo
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2269379
-bundleId: 3147456
+bundleId: 3148050
 url: https://jmarlo.shinyapps.io/A-B-tool/
-when: 1589469889.24896
+when: 1589477366.91215
 asMultiple: FALSE
 asStatic: FALSE

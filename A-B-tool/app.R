@@ -62,7 +62,21 @@ spread_values <- c(0.01, 0.05, 0.10, 0.20)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = "my-shiny.css",
-                
+
+    # jQuery to keep text at top when scrolling
+    tags$script(HTML(
+    "$(window).scroll(function(e){ 
+        var $el = $('.subheader-container'); 
+        var isPositionFixed = ($el.css('position') == 'fixed');
+        if ($(this).scrollTop() >= 110 && !isPositionFixed){ 
+            $el.css({'position': 'fixed', 'top': '0px', 'display': 'block'}); 
+            }
+        if ($(this).scrollTop() < 110 && isPositionFixed){
+        $el.css({'position': 'static', 'top': '0px', 'display': 'none'}); 
+        } 
+    });"
+    )),
+    
     # download roboto and inconsolata font
     HTML('<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:400,300,700,400italic">'),
     HTML('<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inconsolata">'),
@@ -71,7 +85,9 @@ ui <- fluidPage(theme = "my-shiny.css",
     chooseSliderSkin(skin = "Flat",
                      color = "#374f48"),
     
+    # text output of title with probability results
     htmlOutput("probability_results"),
+    htmlOutput("probability_results_scroll"),
 
     sidebarLayout(
         
@@ -115,6 +131,7 @@ ui <- fluidPage(theme = "my-shiny.css",
         )
     ),
     
+    # text for bottom of the page
     HTML('<div class="belowplot" >
          <p>Probability estimates based on 5,000 simulations @ alpha = 0.05</p>
          <p>See 
@@ -130,21 +147,46 @@ server <- function(input, output) {
     sample_size <- reactive({sample_size_values[input$sample_size == sample_size_text]})
     
     # filter dataset to inputs and pull out probability
-    output$probability_results <- renderText({
-        
-        probs <- summarized_results %>%
+    probs <- reactive({
+        summarized_results %>%
             filter(n_checks == input$n_stops,
                    n_comparisons == input$n_comparisons,
                    effect_size == input$effect_size,
                    sample_size == sample_size(),
                    std_dev == input$spread) %>%
             pull(Probability_of_finding_an_effect)
+    })
+    
+    # html for text that stays at the top
+    output$probability_results <- renderText({
 
-        paste0('<h2>A/B testing: pulling it all together<br>
-               <span class="subheader">Probability of finding at least one effect: &nbsp </span>',
-               '<span class="emphasis"> ~',
-               round(min(0.99, max(0.05, probs)), 2),
-               '</span></h2>')
+        paste0(
+            '<h2>A/B testing: pulling it all together
+            <div>
+            <span class="subheader">Probability of finding at least one effect: &nbsp </span>
+            <span class="emphasis"> ~',
+            round(min(0.99, max(0.05, probs())), 2),
+            '</span>
+            </div>
+            </h2>'
+            )
+
+    })
+    
+    # html for text that scrolls
+    output$probability_results_scroll <- renderText({
+
+        # this contains '.subheader-container' which is responsive to scroll position
+        paste0(
+            '<h2>
+            <div class="subheader-container">
+            <span class="subheader">Probability of finding at least one effect: &nbsp </span>
+            <span class="emphasis"> ~',
+            round(min(0.99, max(0.05, probs())), 2),
+            '</span>
+            </div>
+            </h2>'
+            )
     })
     
     output$distPlot <- renderPlot({
