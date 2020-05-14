@@ -26,11 +26,10 @@ theme_custom <- function() {
             strip.background = element_rect(fill = "gray95"),
             strip.text = element_text(
                 color = "gray30",
-                size = 11,
-                face = "bold"
+                size = 12
             ),
             plot.title = element_text(color = "gray30",
-                                      face = "bold"),
+                                      size = 16),
             plot.subtitle = element_text(size = 10,
                                          color = "gray30"),
             text = element_text(family = "Helvetica"),
@@ -117,11 +116,11 @@ ui <- fluidPage(theme = "my-shiny.css",
     ),
     
     HTML('<div class="belowplot" >
-         <p>Probability estimates based on 5,000 simulations. Alpha = 0.05.</p>
+         <p>Probability estimates based on 5,000 simulations @ alpha = 0.05</p>
          <p>See 
          <a href="https://www.marlo.works/posts/a-b-testing/" target="_blank">marlo.works/A-B-Testing</a>
-          for more info.</p>
-         </div>'),
+          for more info</p>
+         </div>')
 )
 
 # Define server logic required to draw a histogram
@@ -162,17 +161,31 @@ server <- function(input, output) {
                     n = sample_size(),
                     mean = 45 * (1 + input$effect_size),
                     sd = 45 * input$spread
-                ))),
-                ID = factor(rep(
-                    paste0("Comparison ", 1:input$n_comparisons),
-                    each = sample_size()),
-                levels = paste0("Comparison ", 1:input$n_comparisons))
+                )))
             )
+        
+        # dynamically adjust facet labels so its readable on mobile
+        if (input$n_comparisons == 1){
+            dat$ID <- "A single comparison between A and B"
+        } else if (input$n_comparisons <= 5){
+            dat$ID <- factor(
+                rep(paste0("Comparison ", 1:input$n_comparisons), each = sample_size()),
+                levels = paste0("Comparison ", 1:input$n_comparisons))
+        } else {
+            dat$ID <- factor(
+                rep(c("Comp. 1", 2:input$n_comparisons), each = sample_size()),
+                levels =  c("Comp. 1", 2:input$n_comparisons))
+        }
 
         # calculate means for each distribution
-        means <- dat %>% group_by(ID) %>% summarize(meanA = mean(As),
-                                                     meanB = mean(Bs))
-
+        means <- dat %>% 
+            group_by(ID) %>% 
+            summarize(meanA = mean(As),
+                      meanB = mean(Bs))
+        
+        # facet font size; responsive to number of facets so its readable on mobile
+        facet_font <- if_else(input$n_comparisons > 5, 10, 12)
+        
         # draw the plot
         fill_colors <- c("A" = "grey20", "B" = "#4e917e")
         dat %>%
@@ -188,7 +201,7 @@ server <- function(input, output) {
             labs(title = "Distributions of A and B",
                  x = NULL,
                  y = NULL) +
-            theme(legend.position = "bottom")
+            theme(strip.text = element_text(size = facet_font))
 
     })
 }
